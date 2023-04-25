@@ -125,11 +125,13 @@ void controlLED(int RV, int GV, int BV) {
 // open bright sensor, 1 => open
 void openBrightSensor() {
   brightnessSensorSwitch = 1;
+  pubMQTTmsg();
 }
 
 // close bright sensor, 0 => close
 void closeBrightSensor() {
   brightnessSensorSwitch = 0;
+  pubMQTTmsg();
 }
 
 // ESP8266 connect MQTT server
@@ -316,7 +318,7 @@ void pubBrightnessDegree() {
 
   // publish the state of the autoFan
   String messageString;
-  messageString = String(shine()) + " degree";
+  messageString = String(shine());
   char publishMsg[messageString.length() + 1];
   strcpy(publishMsg, messageString.c_str());
 
