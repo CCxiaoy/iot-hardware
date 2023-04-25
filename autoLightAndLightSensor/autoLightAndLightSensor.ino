@@ -122,9 +122,14 @@ void controlLED(int RV, int GV, int BV) {
   analogWrite(B, BV);
 }
 
-// Switch bright sensor state 还得改改
+// open bright sensor, 1 => open
 void openBrightSensor() {
-  
+  brightnessSensorSwitch = 1;
+}
+
+// close bright sensor, 0 => close
+void closeBrightSensor() {
+  brightnessSensorSwitch = 0;
 }
 
 // ESP8266 connect MQTT server
@@ -173,9 +178,9 @@ void pubLightStatus() {
   // publish the state of the autoLight
   String messageString;
   if (brightness == 0) {
-    messageString = "on";
+    messageString = "On";
   } else {
-    messageString = "off";
+    messageString = "Off";
   }
   char publishMsg[messageString.length() + 1];
   strcpy(publishMsg, messageString.c_str());
@@ -191,7 +196,7 @@ void pubLightStatus() {
   }
 }
 
-// Publish autolight connection status (Connected / Disconnected)
+// Publish autolight connection status (Online / Offline)
 void pubLightConnectionStatus() {
   // according to ESP8266's mac address to generate client device ID
   // (to avoid ID collision) when different users publish messages
@@ -200,7 +205,7 @@ void pubLightConnectionStatus() {
   strcpy(publishTopic, topicString.c_str());
 
   // publish the connection state of the autoLight
-  String messageString = "connected";
+  String messageString = "Online";
 
   char publishMsg[messageString.length() + 1];
   strcpy(publishMsg, messageString.c_str());
@@ -258,9 +263,9 @@ void pubBrightnessSensorStatus() {
   // publish the state of the autoLight
   String messageString;
   if (brightnessSensorSwitch == 1) {
-    messageString = "on";
+    messageString = "On";
   } else {
-    messageString = "off";
+    messageString = "Off";
   }
   char publishMsg[messageString.length() + 1];
   strcpy(publishMsg, messageString.c_str());
@@ -276,7 +281,7 @@ void pubBrightnessSensorStatus() {
   }
 }
 
-// Publish bright sensor connection status (Connected / Disconnected)
+// Publish bright sensor connection status (Online / Offline)
 void pubBrightnessSensorConnectionStatus() {
   // according to ESP8266's mac address to generate client device ID
   // (to avoid ID collision) when different users publish messages
@@ -285,7 +290,7 @@ void pubBrightnessSensorConnectionStatus() {
   strcpy(publishTopic, topicString.c_str());
 
   // publish the connection state of the bright sensor
-  String messageString = "connected";
+  String messageString = "Online";
 
   char publishMsg[messageString.length() + 1];
   strcpy(publishMsg, messageString.c_str());
@@ -326,9 +331,8 @@ void pubBrightnessDegree() {
   }
 }
 
-// Subscrib specific topic
-// 后续改进 能不能通过外部传参 topic的前缀来制定订阅的topic名字
-void subscribeTopic() {
+// subscribe autoLight
+void subscribeAutoLightTopic() {
   // Create subscrib topic with postfix with Mac address
   // to avoid topic collision when similar devices connect to the same devices
   String topicString = "autoLight-" + WiFi.macAddress();
@@ -342,28 +346,34 @@ void subscribeTopic() {
     Serial.println(subTopic);
   } else {
     Serial.print("Subscribe Fail...");
-  }
+  }  
 }
 
-void autoLightCallback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message Received [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println("");
-  Serial.print("Message Length(Bytes) ");
-  Serial.println(length);
+// subscribe bright sensor
+void subscribeBrightnessSensorTopic() {
+  // Create subscrib topic with postfix with Mac address
+  // to avoid topic collision when similar devices connect to the same devices
+  String topicString = "lightSensor-" + WiFi.macAddress();
+  char subTopic[topicString.length() + 1];  // plus one is a settled operation, you can see as the string has a hide one at the end
+  strcpy(subTopic, topicString.c_str());
 
-  if ((char)payload[0] == '1') {  // if the message received started with 1
-    openLED();                    // Then light is opened.
+  // Through the serial monitor to check if subscribe the topic successfully and the name info about this topic
+  // method subscribe beneath require arguments to be a char array
+  if (mqttClient.subscribe(subTopic)) {
+    Serial.println("Subscribe Topic:");
+    Serial.println(subTopic);
   } else {
-    closeLED();  // Otherwise the light is closed.
-  }
+    Serial.print("Subscribe Fail...");
+  }  
 }
 
-// autoLight Callback
+// Subscrib specific topic
+// 后续改进 能不能通过外部传参 topic的前缀来制定订阅的topic名字
+void subscribeTopic() {
+  subscribeAutoLightTopic();
+  subscribeBrightnessSensorTopic();  
+}
+
 void autoLightCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message Received [");
   Serial.print(topic);
@@ -395,9 +405,9 @@ void brightSensorCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println(length);
 
   if ((char)payload[0] == '1') {  // if the message received started with 1
-    openLED();                    // Then light is opened.
+    openBrightSensor();                    // Then sensor is opened.
   } else {
-    closeLED();  // Otherwise the light is closed.
+    closeBrightSensor();  // Otherwise the sensor is closed.
   }
 }
 
@@ -405,12 +415,13 @@ void brightSensorCallback(char* topic, byte* payload, unsigned int length) {
 void receiveCallback(char* topic, byte* payload, unsigned int length) {
   String comingTopic = topic;
   String autoLightTopicString = "autoLight-" + WiFi.macAddress();
+  String lightSensorTopicString = "lightSensor-" + WiFi.macAddress();
   // autolight callback
   if (comingTopic == autoLightTopicString) {
     autoLightCallback(topic, payload, length);
   }
   // lightSensor callback
-  if (comingTopic == autoLightTopicString) {
+  if (comingTopic == lightSensorTopicString) {
     brightSensorCallback(topic, payload, length);
   }
 }
