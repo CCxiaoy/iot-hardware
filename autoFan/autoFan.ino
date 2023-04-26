@@ -106,36 +106,101 @@ void connectMQTTServer(){
   }   
 }
 
-// Publish messages
-void pubMQTTmsg(){
-  // according to ESP8266's mac address to generate client device ID 
-  // (to avoid ID collision) when different users publish messages 
+// Publish autoFan status (On / Off)
+void pubLightStatus() {
+  // according to ESP8266's mac address to generate client device ID
+  // (to avoid ID collision) when different users publish messages
   String topicString = "autoFan-status-" + WiFi.macAddress();
-  char publishTopic[topicString.length() + 1];  
+  char publishTopic[topicString.length() + 1];
   strcpy(publishTopic, topicString.c_str());
- 
-  // publish the state of the autoFan
+
+  // publish the state of the autoLight
   String messageString;
-  if(motorSpeed > 0){
-    messageString = "on"; 
+  if (motorSpeed > 0) {
+    messageString = "On";
   } else {
-    messageString = "off"; 
+    messageString = "Off";
   }
-  char publishMsg[messageString.length() + 1];   
+  char publishMsg[messageString.length() + 1];
   strcpy(publishMsg, messageString.c_str());
-  
+
   // achieve to publish message to MQTT server through ESP8266
-  if(mqttClient.publish(publishTopic, publishMsg)){
-    Serial.println("Publish Topic:");Serial.println(publishTopic);
-    Serial.println("Publish message:");Serial.println(publishMsg);    
+  if (mqttClient.publish(publishTopic, publishMsg)) {
+    Serial.println("Publish Topic:");
+    Serial.println(publishTopic);
+    Serial.println("Publish message:");
+    Serial.println(publishMsg);
   } else {
-    Serial.println("Message Publish Failed."); 
+    Serial.println("Message Publish Failed.");
   }
 }
 
-// Subscrib specific topic
-// 后续改进 能不能通过外部传参 topic的前缀来制定订阅的topic名字
-void subscribeTopic(){
+// Publish autoFan connection status (Online / Offline)
+void pubLightConnectionStatus() {
+  // according to ESP8266's mac address to generate client device ID
+  // (to avoid ID collision) when different users publish messages
+  String topicString = "autoFan-connection-status-" + WiFi.macAddress();
+  char publishTopic[topicString.length() + 1];
+  strcpy(publishTopic, topicString.c_str());
+
+  // publish the connection state of the autoLight
+  String messageString = "Online";
+
+  char publishMsg[messageString.length() + 1];
+  strcpy(publishMsg, messageString.c_str());
+
+  // achieve to publish message to MQTT server through ESP8266
+  if (mqttClient.publish(publishTopic, publishMsg)) {
+    Serial.println("Publish Topic:");
+    Serial.println(publishTopic);
+    Serial.println("Publish message:");
+    Serial.println(publishMsg);
+  } else {
+    Serial.println("Message Publish Failed.");
+  }
+}
+
+// Publish autoFan power Degree
+void pubLightPowerDegree() {
+  // according to ESP8266's mac address to generate client device ID
+  // (to avoid ID collision) when different users publish messages
+  String topicString = "autoFan-power-status-" + WiFi.macAddress();
+  char publishTopic[topicString.length() + 1];
+  strcpy(publishTopic, topicString.c_str());
+
+  // publish the state of the autoFan
+  String messageString;
+
+  if (motorSpeed == 255) {
+    messageString = "100";
+  } 
+  if (motorSpeed == 0) {
+    messageString = "0";
+  }
+
+  char publishMsg[messageString.length() + 1];
+  strcpy(publishMsg, messageString.c_str());
+
+  // achieve to publish message to MQTT server through ESP8266
+  if (mqttClient.publish(publishTopic, publishMsg)) {
+    Serial.println("Publish Topic:");
+    Serial.println(publishTopic);
+    Serial.println("Publish message:");
+    Serial.println(publishMsg);
+  } else {
+    Serial.println("Message Publish Failed.");
+  }
+}
+
+// Publish messages
+void pubMQTTmsg(){
+  pubLightStatus();
+  pubLightConnectionStatus();
+  pubLightPowerDegree();
+}
+
+// subscribe autoFan
+void subscribeAutoLightTopic() {
   // Create subscrib topic with postfix with Mac address
   // to avoid topic collision when similar devices connect to the same devices
   String topicString = "autoFan-" + WiFi.macAddress();
@@ -152,8 +217,14 @@ void subscribeTopic(){
   }  
 }
 
-// Callback after receive message from MQTT server
-void receiveCallback(char* topic, byte* payload, unsigned int length) {
+// Subscrib specific topic
+// 后续改进 能不能通过外部传参 topic的前缀来制定订阅的topic名字
+void subscribeTopic(){
+  subscribeAutoLightTopic();
+}
+
+// autoFan callback
+void autoFanCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message Received [");
   Serial.print(topic);
   Serial.print("] ");
@@ -168,6 +239,16 @@ void receiveCallback(char* topic, byte* payload, unsigned int length) {
     fullSpeedFan(); // Then fan is opened.
   } else {                           
     closeFan(); // Otherwise the fan is closed.
+  }
+}
+
+// Callback after receive message from MQTT server
+void receiveCallback(char* topic, byte* payload, unsigned int length) {
+  String comingTopic = topic;
+  String autoFanTopicString = "autoFan-" + WiFi.macAddress();
+  // autoFan callback
+  if (comingTopic == autoFanTopicString) {
+    autoFanCallback(topic, payload, length);
   }
 }
 

@@ -376,6 +376,7 @@ void subscribeTopic() {
   subscribeBrightnessSensorTopic();  
 }
 
+// autoLight callback
 void autoLightCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message Received [");
   Serial.print(topic);
